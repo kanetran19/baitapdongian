@@ -1,0 +1,31 @@
+-- so luong moi loai
+select type1 as LOAI, count(name) as SOLUONG
+from pokemon
+group by type1
+
+-- tong chi so cua moi ten pokemon
+select name as TEN, (attack + defense + speed) as CHISO
+from pokemon
+group by name
+order by CHISO asc
+limit 10
+
+-- gia tri trung binh chi so theo moi loai
+SELECT type1, AVG(attack + defense) as GTTB
+FROM pokemon
+GROUP BY type1
+
+-- ten cac pokemon huyen tho?i he lua
+select name from pokemon
+where is_legendary = 1 and type1 = 'Fire' AND type2 IS NOT null
+
+-- chi so lon nhat, nho nhat, trung binh cua tung loai
+select type1 as LOAI, max(base_total) as LONNHAT, min(base_total) as NHONHAT, AVG(base_total) as TRUNGBINH
+from pokemon
+group by type1
+
+select name, base_total
+from pokemon
+where is_legendary = 0
+order by base_total desc
+limit 10

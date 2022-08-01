@@ -1,0 +1,198 @@
+-- mini project ve doanh thu, loi nhuan va ti le loi nhuan theo thang, nam
+select sum(Sales) as Doanh_Thu,
+	sum(Profit) as Loi_Nhuan,
+	round(sum(Profit)/sum(Sales),2) as Ty_Le_Loi_Nhuan,
+	concat(year(Order_Date),'-',month(Order_Date)) as Thang_Nam
+FROM orders
+group by Thang_Nam
+order by year(Order_Date) desc, month(Order_Date) desc
+
+-- mini project ve ti le loi nhuan theo tieu bang
+select 	round(sum(Profit)/sum(Sales),2) as Ty_Le_Loi_Nhuan,
+	State as Tieu_Bang
+from orders
+where year(Order_Date) = 2017
+group by Tieu_Bang
+order by Ty_Le_Loi_Nhuan desc
+
+-- mini project ve tong hoa don, tong hoa don tra, ti le tra hang theo tieu bang va danh muc
+select 
+	count(orders.Order_ID) as Tong_HD,
+	count(returns.Order_ID) as Tong_HD_Tra,
+	count(returns.Order_ID)/count(orders.Order_ID) as Ty_Le_Tra_Hang,
+	orders.state as Tieu_Bang,
+	orders.category as Danh_Muc
+from miniproject.orders
+left join returns on orders.Order_ID = returns.Order_ID 
+group by Tieu_Bang, Danh_Muc
+order by Tong_HD_Tra desc
+
+-- ham left join tong gia tri theo order ID
+Select orders.order_ID, sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+from orders
+left join returns on orders.order_id = returns.order_id
+group by orders.order_ID
+
+-- ham left join tinh tong gia tri het
+with abc as (
+	select orders.order_ID, sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+	from orders
+	left join returns on orders.order_id = returns.order_id
+	group by orders.order_ID)
+select sum(Tong_gia_tri), Tra_hang
+from abc
+group by Tra_hang
+
+-- tuong tu ham tren nhung ngan hon
+select sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+from orders
+left join returns on orders.order_id = returns.order_id
+group by returns.returned
+
+-- ham right join tong gia tri theo order ID
+Select returns.order_ID, sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+from orders
+right join returns on orders.order_id = returns.order_id
+group by returns.order_ID
+
+-- ham inner join tong gia tri theo order ID
+Select orders.order_ID, sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+from orders
+inner join returns on orders.order_id = returns.order_id
+group by orders.order_ID
+
+-- ham full outer join tong gia tri theo order ID
+Select orders.order_ID, sum(orders.sales * orders.quantity) as Tong_gia_tri, returns.returned as Tra_hang
+from orders
+full outer join returns on orders.order_id = returns.order_id
+group by orders.order_ID
+
+-- so luong san pham ban ra trong ngay va tong tien tai Los Angeles (dung ham with)
+with raw_data as (
+	select *
+	from orders
+	where City = 'Los Angeles')
+select Order_Date, count(Product_ID) as num_product, sum(Sales) as total_sales
+from raw_data group by City,Order_Date
+
+-- tinh và them cot tong gia tri hoa don o cuoi table orders
+with raw_data as (
+		select * from orders)
+	,sales_per_order as (
+		select Order_ID	, sum(sales) as total_sales
+		from raw_data
+		group by Order_ID)
+select raw_data.*, sales_per_order.total_sales
+from raw_data
+left join sales_per_order on raw_data.order_id = Sales_per_order.order_id
+limit 100
+
+-- lay du lieu thanh pho co tong sales dung thu 3 thuoc tieu bang co tong sales dung thu 2 va them vao cuoi cot tong sales thanh pho do
+with raw_data as (
+	select *
+	from orders)
+, sales_per_state as (
+	select Country,State
+	, sum(Sales) as state_sales
+	, row_number() over (partition by Country order by state_sales desc) as state_sales_rank 
+	from raw_data
+	group by Country,State)
+, sales_per_city as (
+	select Country, state,city
+		, sum(Sales) as city_sales
+		, row_number() over (partition by state order by city_sales desc) as city_sales_rank
+	from raw_data -- dung from raw_data la de lay du lieu sales city tu raw moi duoc
+	where State = (select state from sales_per_state 
+					where state_sales_rank = 2)
+	group by Country,state,city)
+select raw_data.*, sales_per_city.city_sales
+from raw_data
+inner join sales_per_city on sales_per_city.city = raw_data.city -- ket noi bang sales city voi bang raw lai theo yeu cau de bai
+where raw_data.city = (select city from sales_per_city 
+					where city_sales_rank = 3)
+and raw_data.state = (select state from sales_per_state 
+					where state_sales_rank = 2)
+
+-- hoac ngay ham inner join them sales_per_city.city_sales_rank = 3 
+-- where raw_data.State = (select state from sales_per_state where state_sales_rank = 2)
+					
+-- lay du lieu thanh pho co tong sales thap nhat thuoc tieu bang co tong sales thap nhat va them vao cuoi cot tong sales thanh pho do
+with raw_data as (
+	select *
+	from orders)
+, sales_per_state as (
+	select Country,State
+		, sum(Sales) as state_sales
+		, row_number() over (partition by Country order by state_sales asc) as state_sales_rank
+	from raw_data 
+	group by Country,State)
+, sales_per_city as (
+	select Country, state, city
+		, sum(Sales) as city_sales
+		, row_number() over (partition by state order by city_sales asc) as city_sales_rank
+	from raw_data
+	where State = (select state from sales_per_state 
+					where state_sales_rank = 1)
+	group by Country,state,city)
+select raw_data.*, sales_per_city.city_sales
+from raw_data
+inner join sales_per_city on sales_per_city.city = raw_data.city
+where raw_data.city = (select city from sales_per_city 
+					where city_sales_rank = 1)
+and raw_data.state = (select state from sales_per_state 
+					where state_sales_rank = 1)
+					
+-- loai bo du lieu ngoai lai outliers
+-- Buoc 1: Tong gia tri moi order
+with sales_per_order as (
+	select Order_ID
+	, state
+	, sum(Sales) as total_order_sales
+	from orders
+	group by Order_ID, state)
+-- Buoc 2: Tinh avg và standard deviation dua tren total order sales và State
+, avg_std as (
+	select state 
+	,sum(total_order_sales) as sum_sales
+	,count(total_order_sales) as number_of_orders
+	,avg(total_order_sales) as avg_sales
+	,std(total_order_sales) as std_sales
+	from sales_per_order 
+	group by state)
+-- B??c 3: tính Upper whisker và Lower whisker m?i state
+-- upper_whisker = avg + std*steps
+-- lower_whisker = avg - std*steps
+-- o day mac dinh steps = 3, chiem 97% gia tri, neu nam ngoai khoang này thi la outliers
+, upper_lower_whisker as (	
+	select state
+	, std_sales
+	, avg_sales
+	, number_of_orders
+	, (avg_sales + std_sales*3) as upper_whisker
+	-- chung ta dang kiem tra gia tri cua moi order 
+	-- nhung gia tri order < 0 se chuyen ve bang 0, thap nhat la khong co gia orders
+	, case when (avg_sales - std_sales*3) < 0 then 0 
+	else (avg_sales - std_sales*3) end as lower_whisker 
+	from avg_std)
+-- Buoc 4: xac dinh order là outliers 
+-- So sanh total_order_sales voi upper và lower 
+, find_outliers as (
+	select spo.*
+	, ulw.std_sales
+	, ulw.avg_sales
+	, ulw.number_of_orders
+	, ulw.upper_whisker
+	, ulw.lower_whisker 
+	, case when spo.total_order_sales > ulw.upper_whisker
+		or spo.total_order_sales < ulw.lower_whisker 
+	then 'Outlier' else 'Expected' end as Outlier_status 
+	from sales_per_order as spo 
+	left join upper_lower_whisker as ulw on ulw.state = spo.state)
+-- Buoc 5: Tinh lai gia tri trung binh cua moi order sau khi loai bo các outliers (chi giu lai Expected) 
+select *
+	, avg(total_order_sales) as avg_sales_no_outliers 
+	, count(*) as new_number_of_orders -- so order sau khi da loai bo outliers 
+	, count(*)/number_of_orders*100 as remaining_data -- ti le phan tram du lieu con lai 
+from find_outliers where outlier_status = 'Expected' 
+group by state
+-- nhin lai phan remaining_data thi ti le deu tren 95% nen khong can doi buoc nhay 3 nua
